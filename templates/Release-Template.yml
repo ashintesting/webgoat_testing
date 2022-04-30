@@ -1,0 +1,95 @@
+parameters:
+- name: 'TargetMachines'
+  type: string
+  default: ''
+- name: 'TargetMachinesUser'
+  type: string
+  default: ''
+- name: 'TargetMachinesPassword'
+  type: string
+  default: ''
+- name: 'ArtifactSourcePath'
+  type: string
+  default: ''
+- name: 'AppName'
+  type: string
+  default: ''
+- name: 'AppZipFile'
+  type: string
+  default: ''
+- name: 'AppDirPath'
+  type: string
+  default: ''
+- name: 'TargetEnv'
+  type: string
+  default: ''
+- name: SetAuth
+  type: boolean
+  default: True
+
+jobs:
+- deployment: Deploy
+  environment: '${{ parameters.TargetEnv }}'
+  strategy:
+    runOnce:
+      deploy:
+        steps:
+        - task: FileTransform@1
+          displayName: 'File Transform'
+          inputs:
+            folderPath: '${{ parameters.ArtifactSourcePath }}'
+            fileType: json
+            targetFiles: '**\appsettings.json'
+
+        - task: WindowsMachineFileCopy@2
+          displayName: 'Copy files'
+          inputs:
+            SourcePath: '${{ parameters.ArtifactSourcePath }}'
+            MachineNames: '${{ parameters.TargetMachines }}'
+            AdminUserName: '${{ parameters.TargetMachinesUser }}'
+            AdminPassword: '${{ parameters.TargetMachinesPassword }}'
+            TargetPath: 'C:\inetpub\Deployment\${{ parameters.AppName }}'
+
+        - task: PowerShellOnTargetMachines@3
+          displayName: 'Create Website'
+          inputs:
+            Machines: '${{ parameters.TargetMachines }}'
+            UserName: '${{ parameters.TargetMachinesUser }}'
+            UserPassword: '${{ parameters.TargetMachinesPassword }}'
+            ScriptType: FilePath
+            ScriptPath: 'C:\BuildScripts\IIS\CreateWebSite.ps1'
+            ScriptArguments: '-WebSiteName ${{ parameters.AppName }}'
+            CommunicationProtocol: Http
+
+        - task: IISWebAppDeploy@2
+          displayName: 'Create IIS WebApp'
+          inputs:
+            machinesList: '${{ parameters.TargetMachines }}'
+            AdminUserName: '${{ parameters.TargetMachinesUser }}'
+            AdminPassword: '${{ parameters.TargetMachinesPassword }}'
+            WinRMProtocol: 'Http'
+            WebDeployPackage: 'C:\inetpub\Deployment\${{ parameters.AppName }}\${{ parameters.AppZipFile }}'
+            WebsiteName: 'Default Web Site/${{ parameters.AppName }}'
+            TakeAppOffline: true
+
+        - task: PowerShellOnTargetMachines@3
+          displayName: 'Set Anonymous and Windows Auth on ${{ parameters.TargetMachines }}'
+          inputs:
+            Machines: '${{ parameters.TargetMachines }}'
+            UserName: '${{ parameters.TargetMachinesUser }}'
+            UserPassword: '${{ parameters.TargetMachinesPassword }}'
+            ScriptType: 'FilePath'
+            ScriptPath: 'C:\BuildScripts\IIS\SetWindowsAnonymousAuth.ps1'
+            ScriptArguments: '-WebSiteName ${{ parameters.AppName }}'
+            CommunicationProtocol: 'Http'
+          enabled: ${{parameters.SetAuth}}
+
+        - task: PowerShellOnTargetMachines@3
+          displayName: 'Delete Inetpub\Deployment\${{ parameters.AppName }} directory on ${{ parameters.TargetMachines }}' 
+          inputs:
+            Machines: '${{ parameters.TargetMachines }}'
+            UserName: '${{ parameters.TargetMachinesUser }}'
+            UserPassword: '${{ parameters.TargetMachinesPassword }}'
+            CommunicationProtocol: Http
+            ScriptPath: 'C:\BuildScripts\Config\DeleteFiles.ps1'
+            ScriptArguments: '-AppFolder "C:\inetpub\Deployment\${{ parameters.AppName }}"'

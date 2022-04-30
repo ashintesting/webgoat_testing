@@ -1,0 +1,96 @@
+parameters:
+- name: 'ProjectKey'
+  type: string
+- name: 'ProjectName'
+  type: string
+- name: 'Version'
+  type: string
+- name: 'FortifyParams'
+  type: string
+  default: ''
+- name: 'FortifyProjectPath'
+  type: string
+  
+
+jobs:
+- job:
+  variables:
+    - group: Fortify.Settings
+    - group: Sonarqube.Settings
+  steps:
+  - task: NuGetCommand@2
+    displayName: 'Restore nuget packages'
+    inputs:
+      command: 'restore'
+      restoreSolution: '**/*.sln'
+      feedsToUse: 'config'
+      nugetConfigPath: 'nuget.config'
+  - task: SonarQubePrepare@5
+    displayName: 'Prepare analysis on SonarQube'
+    inputs:
+      SonarQube: SonarQube
+      projectKey: '${{parameters.ProjectKey}}'
+      projectName: '${{parameters.ProjectKey}}'
+      projectVersion: '${{parameters.Version}}'
+      extraProperties: |
+        sonar.branch.name main
+        sonar.dependencyCheck.reportPath=TestResults/dependency-check/dependency-check-report.xml
+        sonar.dependencyCheck.htmlReportPath=TestResults/dependency-check/dependency-check-report.html
+  - task: dependency-check-build-task@6
+    displayName: 'Dependency Check'
+    inputs:
+      projectName: '${{parameters.ProjectKey}}'
+      scanPath: '**\*.sln'
+      excludePath: '**/*Tests*'
+      format: 'HTML,XML'
+      reportsDirectory: '$(Build.SourcesDirectory)/TestResults/dependency-check'
+      suppressionPath: 'C:\BuildScripts\Audit\dependency-check-suppress.xml'
+      additionalArguments: '--exclude "/**/Microsoft.*.dll" --exclude "/**/System.*.dll" --disableYarnAudit'
+      localInstallPath: 'C:\dependency-check'
+    continueOnError: true        
+  - task: FortifySCA@7
+    displayName: 'Run Fortify on '
+    inputs:
+      applicationType: 'dotnet'
+      fortifyProjects: ${{parameters.FortifyProjectPath}}
+      buildAnalyzerParams: '${{parameters.FortifyParams}} $(Fortify.ExcludedLibraries)  -exclude "$(Build.SourcesDirectory)\**\*Tests*\*"  -exclude "$(Build.SourcesDirectory)\**\docker-compose.yml" -exclude "$(Build.SourcesDirectory)\**\Dockerfile" -exclude "$(Build.SourcesDirectory)\**\.dockerignore" -exclude "$(Build.SourcesDirectory)\**\*.html" -build-label ${{parameters.ProjectKey}}-$(Build.BuildNumber)'
+      fortifyBuildId: '${{parameters.ProjectKey}}'
+      runFortifyRulepackUpdate: true
+      scaVerbose: true
+      scaDebug: true
+      fortifyScanType: LocalScan
+      runFortifyUpload: true
+      fortifyServerName: 'Fortify SSC'
+      fortifyApplicationName: '${{parameters.ProjectName}}'
+      fortifyApplicationVersion: '${{parameters.Version}}'
+  - task: PowerShell@2
+    displayName: 'Audit Fortify results and pass/fail for ASCR'
+    inputs:
+      targetType: filePath
+      filePath: 'C:\Buildscripts\Audit\LVVWDVerifier.ps1'
+      arguments: '-SSCBase "$(Fortify.Server)" -username "$(Fortify.Username)" -password "$(Fortify.Password)" -Buildlabel "${{parameters.ProjectKey}}-$(Build.BuildNumber)" -projectName "${{parameters.ProjectName}}" -projectVersionName "${{parameters.Version}}"'
+  # Build Solution
+  - task: DotNetCoreCLI@2
+    displayName: 'dotnet build **/*.sln'
+    inputs:
+      projects: '**/*.sln'
+
+  - task: SonarQubeAnalyze@5
+    displayName: 'Run Code Analysis'
+    continueOnError: true
+  - task: SonarQubePublish@5
+    inputs:
+      pollingTimeoutSec: '300'
+    continueOnError: true    
+  - task: PowerShell@2
+    displayName: 'Audit Dependency Check results in SQ and pass/fail ASCR'
+    inputs:
+      targetType: filePath
+      filePath: 'C:\Buildscripts\Audit\DependencyCheckSQ_V2.ps1'
+      arguments: '-appName "${{parameters.ProjectKey}}" -apiKey $(Sonarqube.Token)'
+
+  - task: PowerShell@2
+    displayName: 'PowerShell Script to add ASCR build tag to mark as successfully completed ASCR valdiation'
+    inputs:
+      targetType: filePath
+      filePath: 'C:\Buildscripts\Audit\ASCRApproveTag.ps1'

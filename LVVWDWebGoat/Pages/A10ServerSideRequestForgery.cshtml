@@ -1,0 +1,25 @@
+﻿@page
+@model LVVWDWebGoat.Pages.A10ServerSideRequestForgeryModel
+@{
+}
+<h2>A10 Server Side Request Forgery</h2>
+<p>A10 demonstrates a server side request forgery by allowing the
+    end user to enter an arbitrary URL and get it from the server.
+    No validation of any sort is being done.
+</p>
+<p>Here are some example URL's to try:</p>
+<ul>
+    <li>https://www.w3schools.com/</li>
+    <li>https://www.makeareadme.com/</li>
+    <li>http://isdprod1:8080/wiki/en/SCADA_Support</li>
+</ul>
+
+<form method="post">
+    Enter URL: <input type="text" name="badurl" value=""/>
+    <br /><input type="submit" value="Go!"/>
+</form>
+
+@if (Model.Response != "") {
+    <p>The result:</p>
+    @Model.Response
+}

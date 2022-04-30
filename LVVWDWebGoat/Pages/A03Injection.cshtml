@@ -1,0 +1,34 @@
+﻿@page
+@model LVVWDWebGoat.Pages.A03InjectionModel
+@{
+}
+
+
+<div class="row">
+    <div class="col-12 text-center">
+
+        <h2>A03-Injection</h2>
+        <h4>
+            Please attempt a sql injection attack here.
+        </h4>
+        <h4>
+            If you are attempting an A05 Security Misconfiguration, simply type junk into the text field and the screen will display things that it should not
+        </h4>
+
+        <br/><br/>
+        <form method="post">
+            <label>HairStyle id:</label>
+            <input type="text" name="id">
+            <input type="submit" value="Query">
+        </form>
+
+        </div>
+
+    </div>
+
+
+    
+
+    <p>@ViewData["Id"]</p>
+    <p>@ViewData["Username"]</p>
+    <p>@ViewData["HairStatus"]</p>

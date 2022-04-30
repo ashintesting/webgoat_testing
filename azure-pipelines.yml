@@ -1,0 +1,38 @@
+trigger: 
+  branches:
+    include:
+      - main
+
+resources:
+  repositories:
+    - repository: templates
+      type: git
+      name: ITAD/ITAD.Common
+      ref: master
+parameters:
+- name: 'ChangeDescription'
+  type: string
+  default: "Bug fixes and feature enhancements"
+
+variables:
+  - name: AppName
+    value: 'LVVWD WebGoat'
+  - name: SiteName
+    value: 'LVVWDWEBGOAT'
+  - name: Version
+    value: '1.0'
+
+stages:
+#Fortify
+- stage: 'ASCR'
+  displayName: 'ASCR'
+  dependsOn: []
+  pool:
+    name: 'On Prem'
+  jobs:
+  - template: templates/ASCR-Template.yml
+    parameters:
+      ProjectKey: $(SiteName)
+      ProjectName: $(AppName)
+      Version: $(Version)
+      FortifyProjectPath: '**/*.sln'

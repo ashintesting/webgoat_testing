@@ -1,0 +1,49 @@
+﻿@page
+@model LoginModel
+@{
+    ViewData["Title"] = "Login";
+}
+
+<div class="row">
+    <div class="text-center">
+        <h1 class="display-4">Login</h1>
+    </div>
+</div>
+
+@if (Global.IsLoggedIn)
+{
+    <div class="row mt-2">
+        <div class="col-12  text-center">
+            <p>You are already logged in</p>
+            <a href="/goathome">Go to your goat home page</a>
+            <br/><br/>
+            <p>If you are trying out the A03 Insecure Design, please logout and try the Forgot Password Link or simply try the <a href="A04ForgotPassword">Forgot Password</a> link </p>
+        </div>
+    </div>
+}
+else
+{
+    <form method="post">
+
+    <div class="row">
+        <div class="col-6 text-end">
+            <label>User Name</label>
+            <input name="username" type="text" />
+        </div>
+        <div class="col-6">
+            <label>Password</label>
+            <input name="password" type="password" />
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col-12  text-center">
+            <button class="btn btn-secondary btn-lg" name="login" type="submit" asp-page-handler="Login">Login</button>
+            <a href="A04ForgotPassword">Forgot Password</a>
+        </div>
+    </div>
+
+</form>
+}
+
+
+

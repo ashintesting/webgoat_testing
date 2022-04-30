@@ -1,0 +1,68 @@
+parameters:
+- name: 'BuildConfiguration'
+  type: string
+- name: 'PublishArtifactName'
+  type: string
+- name: 'BuildArguments'
+  type: string
+  default: ''
+jobs:
+- job: 'Build'  
+  workspace:
+    clean: all
+  steps:
+    # Restore Packages
+    - task: NuGetCommand@2
+      displayName: 'Restore nuget packages'
+      inputs:
+        command: 'restore'
+        restoreSolution: '**/*.sln'
+        feedsToUse: 'config'
+        nugetConfigPath: 'nuget.config'
+
+    # Build Solution
+    - task: DotNetCoreCLI@2
+      displayName: 'dotnet build **/*.sln'
+      inputs:
+        projects: '**/*.sln'
+
+    # Use dotnet to invoke core project Unit Test. (Excluded UI Testing Project)
+    - task: DotNetCoreCLI@2
+      displayName: 'dotnet test'
+      inputs:
+        command: test
+        projects: '**/*Test*.csproj'
+        arguments: '--settings $(System.DefaultWorkingDirectory)/codecoverage.runsettings --collect "XPlat Code Coverage" --configuration ${{ parameters.BuildConfiguration }} /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=$(Build.SourcesDirectory)/CodeCoverage/'
+      continueOnError: true        
+
+    # Use dotnet to publish project
+    - task: DotNetCoreCLI@2
+      displayName: Publish
+      inputs:        
+        command: publish
+        publishWebProjects: true
+        arguments: '--configuration ${{ parameters.BuildConfiguration }} --output "$(Build.artifactstagingdirectory)" ${{parameters.BuildArguments}}'
+    
+    # Create Cobertur Report
+    - task: reportgenerator@4
+      displayName: create reports
+      inputs:
+        reports: '$(Build.SourcesDirectory)/CodeCoverage/coverage.cobertura.xml'
+        targetdir: '$(Build.SourcesDirectory)/CodeCoverage'
+        reporttypes: 'Cobertura'
+      continueOnError: true        
+
+    # Publish Code Coverage
+    - task: PublishCodeCoverageResults@1
+      displayName: 'Publish code coverage'
+      inputs:
+        codeCoverageTool: Cobertura
+        summaryFileLocation: '$(Build.SourcesDirectory)/CodeCoverage/coverage.cobertura.xml'
+      continueOnError: true        
+
+    # Publish artifacts
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish artifacts'
+      inputs:
+        PathtoPublish: '$(Build.artifactstagingdirectory)'
+        ArtifactName: '${{ parameters.PublishArtifactName }}'
