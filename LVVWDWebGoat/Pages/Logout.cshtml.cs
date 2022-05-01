@@ -9,6 +9,7 @@ namespace LVVWDWebGoat.Pages
         {
             Global.IsLoggedIn = false;
             Global.UserName = null;
+            Global.IsAdmin = false;
         }
     }
 }
