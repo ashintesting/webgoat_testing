@@ -17,10 +17,7 @@ This project was created for the purposes of testing OWASP Top 10 2021 Web vulne
 
 
 # Contribute
-Branch from main.
-Name the branch appropriately... ie 'owasp_A08'
-Pull from main back to your new branch to resolve any conflits before creating a pull request into main.
-Pull into main once you are sure it is good.
+Fork and add vulnerabilities as needed.
 
 #Vulnerabilities
 * A01: All pages can be side-loaded and are not checking to see if a user is logged in.
